@@ -41,6 +41,91 @@ const PipelineTab = () => (
   </div>
 );
 
+const DriveHealthTab = () => {
+  const [telemetry, setTelemetry] = useState<TelemetryData>({
+    smart_5_raw: 0,
+    smart_187_raw: 0,
+    smart_188_raw: 0,
+    smart_197_raw: 0,
+    smart_198_raw: 0
+  });
+
+  const [prediction, setPrediction] = useState<Prediction | null>(null);
+
+  const simulateInference = () => {
+    // simulate fastapi inference
+    const penalty = (telemetry.smart_5_raw * 0.1) +
+                    (telemetry.smart_187_raw * 0.5) +
+                    (telemetry.smart_188_raw * 0.2) +
+                    (telemetry.smart_197_raw * 0.3) +
+                    (telemetry.smart_198_raw * 0.3);
+    const base_log_time = 7.5;
+    const log_time = Math.max(0.0, base_log_time - penalty);
+    const ttf_days = Math.exp(log_time);
+    
+    let risk = "low";
+    if (ttf_days < 90) risk = "critical";
+    else if (ttf_days < 365) risk = "high";
+    else if (ttf_days < 1000) risk = "medium";
+
+    setPrediction({
+      ttf_days: Number(ttf_days.toFixed(1)),
+      rul_days: Number(Math.max(0, ttf_days - 30).toFixed(1)),
+      risk_level: risk,
+      log_time: Number(log_time.toFixed(4))
+    });
+  };
+
+  return (
+    <div className="card stagger-enter" style={{ animationDelay: '0.1s' }}>
+      <h2 className="card-title">drive health & inference simulation</h2>
+      
+      <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 300px' }}>
+          <h3>smart telemetry inputs</h3>
+          {Object.keys(telemetry).map(key => (
+            <div className="input-group" key={key}>
+              <label>{key.replace(/_/g, ' ')}</label>
+              <input 
+                type="number" 
+                value={telemetry[key as keyof TelemetryData]} 
+                onChange={(e) => setTelemetry({...telemetry, [key]: Number(e.target.value)})}
+              />
+            </div>
+          ))}
+          <button className="btn" onClick={simulateInference}>run prediction</button>
+        </div>
+
+        <div style={{ flex: '1 1 300px' }}>
+          <h3>prediction results</h3>
+          {prediction ? (
+            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="metric">
+                <span className="metric-label">remaining useful life</span>
+                <span className="metric-value">{prediction.rul_days} days</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">time to failure (ttf)</span>
+                <span className="metric-value">{prediction.ttf_days} days</span>
+              </div>
+              <div>
+                <span className="metric-label">risk level</span>
+                <br/>
+                <span className={`badge badge-${prediction.risk_level}`}>{prediction.risk_level}</span>
+              </div>
+              <div className="json-preview">
+                {JSON.stringify(prediction, null, 2)}
+              </div>
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>enter telemetry to simulate inference.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function DataCenterGuardian() {
   const [activeTab, setActiveTab] = useState('pipeline');
 
