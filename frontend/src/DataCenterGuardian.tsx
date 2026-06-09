@@ -126,6 +126,51 @@ const DriveHealthTab = () => {
   );
 };
 
+const DatasetTab = () => (
+  <div className="card stagger-enter" style={{ animationDelay: '0.1s' }}>
+    <h2 className="card-title">dataset & telemetry</h2>
+    
+    <div className="metric-grid" style={{ marginBottom: '2rem' }}>
+      <div className="card">
+        <span className="metric-label">annualized failure rate (afr)</span>
+        <span className="metric-value">1.12%</span>
+      </div>
+      <div className="card">
+        <span className="metric-label">total drives</span>
+        <span className="metric-value">240,000</span>
+      </div>
+      <div className="card">
+        <span className="metric-label">drive days</span>
+        <span className="metric-value">85,000,000</span>
+      </div>
+      <div className="card">
+        <span className="metric-label">schema evolution</span>
+        <span className="metric-value">v1.4</span>
+      </div>
+    </div>
+
+    <h3>the "failure five" indicators</h3>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+      <div style={{ padding: '1rem', backgroundColor: 'var(--bg-page)', border: '1px solid var(--border)', borderRadius: '4px' }}>
+        <strong>smart 5 (reallocated sectors)</strong>
+        <p style={{ color: 'var(--text-muted)' }}>indicates platter degradation. sector reallocated to spare area.</p>
+      </div>
+      <div style={{ padding: '1rem', backgroundColor: 'var(--bg-page)', border: '1px solid var(--border)', borderRadius: '4px' }}>
+        <strong>smart 187 (uncorrectable errors)</strong>
+        <p style={{ color: 'var(--text-muted)' }}>hardware ecc failure during reads.</p>
+      </div>
+      <div style={{ padding: '1rem', backgroundColor: 'var(--bg-page)', border: '1px solid var(--border)', borderRadius: '4px' }}>
+        <strong>smart 188 (command timeout)</strong>
+        <p style={{ color: 'var(--text-muted)' }}>operations aborted due to timeout behavior.</p>
+      </div>
+      <div style={{ padding: '1rem', backgroundColor: 'var(--bg-page)', border: '1px solid var(--border)', borderRadius: '4px' }}>
+        <strong>smart 197 & 198 (pending/uncorrectable)</strong>
+        <p style={{ color: 'var(--text-muted)' }}>unreadable sectors pending reallocation.</p>
+      </div>
+    </div>
+  </div>
+);
+
 export default function DataCenterGuardian() {
   const [activeTab, setActiveTab] = useState('pipeline');
 
@@ -153,6 +198,8 @@ export default function DataCenterGuardian() {
       
       <main>
         {activeTab === 'pipeline' && <PipelineTab />}
+        {activeTab === 'drive health' && <DriveHealthTab />}
+        {activeTab === 'dataset' && <DatasetTab />}
       </main>
     </div>
   );
