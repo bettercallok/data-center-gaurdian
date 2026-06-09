@@ -1,23 +1,52 @@
-name: MLOps Sync
+name: Continuous Training MLOps Pipeline
 on:
+  schedule:
+    # Run at 00:00 on the 1st of every 3rd month (Quarterly)
+    - cron: '0 0 1 */3 *'
   push:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  sync:
+  continuous-training:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install dependencies
+
+      - name: Install Dependencies
         run: pip install -r requirements.txt
-      - name: Run ETL (Mock)
+
+      - name: Extract & Process Telemetry (ETL)
         run: python src/etl/pipeline.py --mock
-      - name: Train Survival Model (Mock/CPU)
+        # Note: In a true production environment, you would remove --mock
+        # and pull the latest Backblaze CSVs here.
+
+      - name: Train XGBoost & Export ONNX
         run: python src/ml/train_survival.py --cpu
-      - name: Export ONNX
-        run: echo "Model exported to ONNX"
+
+      - name: Commit Updated Model Artifacts
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add src/api/survival_model.onnx
+          git add data/processed/telemetry.json
+          git add data/processed/survival_data.parquet
+          
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to model artifacts."
+          else
+            git commit -m "chore(mlops): automated continuous training model update"
+            git push
+          fi
