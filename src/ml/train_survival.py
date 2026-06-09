@@ -14,9 +14,9 @@ def train_survival_model(data_path: Path, use_gpu: bool):
     ])
     
     features = ["smart_5_raw", "smart_187_raw", "smart_188_raw", "smart_197_raw", "smart_198_raw"]
-    X = df.select(features).to_pandas()
-    y_lower = df.select("y_lower").to_pandas()["y_lower"]
-    y_upper = df.select("y_upper").to_pandas()["y_upper"]
+    X = df.select(features).to_pandas().values
+    y_lower = df.select("y_lower").to_pandas()["y_lower"].values
+    y_upper = df.select("y_upper").to_pandas()["y_upper"].values
     
     dtrain = xgb.DMatrix(X)
     dtrain.set_float_info('label_lower_bound', y_lower)
@@ -46,7 +46,7 @@ def train_survival_model(data_path: Path, use_gpu: bool):
     print(f"Exporting ONNX graph to {model_path}...")
     try:
         from onnxmltools.convert import convert_xgboost
-        from onnxconverter_common.data_types import FloatTensorType
+        from onnxmltools.convert.common.data_types import FloatTensorType
         
         initial_types = [('float_input', FloatTensorType([None, 5]))]
         onnx_model = convert_xgboost(bst, initial_types=initial_types)
@@ -55,8 +55,8 @@ def train_survival_model(data_path: Path, use_gpu: bool):
             f.write(onnx_model.SerializeToString())
             
         print("ONNX compilation successful.")
-    except ImportError:
-        print("onnxmltools not installed, skipping ONNX export.")
+    except Exception as e:
+        print(f"ONNX export failed: {e}")
 
 def main():
     parser = argparse.ArgumentParser()
