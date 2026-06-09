@@ -5,6 +5,7 @@ import urllib.request
 import zipfile
 import shutil
 from pathlib import Path
+import re
 
 # The Failure Five + metadata
 REQUIRED_COLUMNS = [
@@ -12,16 +13,49 @@ REQUIRED_COLUMNS = [
     "smart_5_raw", "smart_187_raw", "smart_188_raw", "smart_197_raw", "smart_198_raw"
 ]
 
-BACKBLAZE_Q4_2023_URL = "https://f001.backblazeb2.com/file/Backblaze-Hard-Drive-Data/data_Q4_2023.zip"
+def get_latest_backblaze_url():
+    """Scrapes the Backblaze website for the latest dataset ZIP URL."""
+    url = "https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data"
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    try:
+        html = urllib.request.urlopen(req).read().decode('utf-8')
+    except Exception as e:
+        print(f"Failed to fetch Backblaze page: {e}")
+        return "https://f001.backblazeb2.com/file/Backblaze-Hard-Drive-Data/data_Q4_2025.zip", "Q4 2025"
+    
+    # Find all zip links matching the pattern
+    links = list(set(re.findall(r'https://f001\.backblazeb2\.com/file/Backblaze-Hard-Drive-Data/data_Q[1-4]_\d{4}\.zip', html)))
+    
+    if not links:
+        print("No zip links found, returning fallback.")
+        return "https://f001.backblazeb2.com/file/Backblaze-Hard-Drive-Data/data_Q4_2025.zip", "Q4 2025"
+        
+    def extract_time(link):
+        match = re.search(r'data_Q([1-4])_(\d{4})\.zip', link)
+        if match:
+            q, y = match.groups()
+            return int(y), int(q)
+        return 0, 0
 
-def download_and_extract(raw_dir: Path):
-    """Downloads the last 3 months of Backblaze data (Q4 2023) and extracts CSVs."""
-    zip_path = raw_dir / "data_Q4_2023.zip"
-    extract_path = raw_dir / "data_Q4_2023"
+    links.sort(key=extract_time, reverse=True)
+    latest_url = links[0]
+    
+    match = re.search(r'data_Q([1-4])_(\d{4})\.zip', latest_url)
+    quarter_str = f"Q{match.group(1)} {match.group(2)}" if match else "Unknown Quarter"
+    
+    return latest_url, quarter_str
+
+def download_and_extract(raw_dir: Path, url: str):
+    """Downloads the dynamic Backblaze data zip and extracts it."""
+    filename = url.split('/')[-1]
+    folder_name = filename.replace('.zip', '')
+    
+    zip_path = raw_dir / filename
+    extract_path = raw_dir / folder_name
     
     if not zip_path.exists():
-        print(f"Downloading {BACKBLAZE_Q4_2023_URL} (this may take a while)...")
-        urllib.request.urlretrieve(BACKBLAZE_Q4_2023_URL, zip_path)
+        print(f"Downloading {url} (this may take a while)...")
+        urllib.request.urlretrieve(url, zip_path)
         print("Download complete.")
         
     if not extract_path.exists():
@@ -78,14 +112,14 @@ def process_polars_stream(extract_path: Path, output_path: Path):
         })
         df.write_parquet(output_path)
 
-def update_telemetry(processed_dir: Path):
+def update_telemetry(processed_dir: Path, quarter_str: str):
     """Updates telemetry.json with latest metadata."""
     telemetry = {
         "AFR": "1.34%",
         "total_drives": 245000,
         "drive_days": 22050000,
         "schema_version": "v1.5",
-        "latest_quarter": "Q4 2023"
+        "latest_quarter": quarter_str
     }
     with open(processed_dir / "telemetry.json", "w") as f:
         json.dump(telemetry, f, indent=2)
@@ -93,7 +127,7 @@ def update_telemetry(processed_dir: Path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mock", action="store_true", help="Deprecated flag. Now fetches real Q4 2023 data.")
+    parser.add_argument("--mock", action="store_true", help="Deprecated flag. Now dynamically fetches the latest data.")
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parent.parent.parent
@@ -103,9 +137,12 @@ def main():
     raw_dir.mkdir(parents=True, exist_ok=True)
     processed_dir.mkdir(parents=True, exist_ok=True)
 
-    extract_path = download_and_extract(raw_dir)
+    latest_url, quarter_str = get_latest_backblaze_url()
+    print(f"Latest dataset found: {quarter_str}")
+
+    extract_path = download_and_extract(raw_dir, latest_url)
     process_polars_stream(extract_path, processed_dir / "survival_data.parquet")
-    update_telemetry(processed_dir)
+    update_telemetry(processed_dir, quarter_str)
 
 if __name__ == "__main__":
     main()
