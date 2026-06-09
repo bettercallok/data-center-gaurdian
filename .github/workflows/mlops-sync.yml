@@ -44,7 +44,6 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add -f src/api/survival_model.json
           git add -f data/processed/telemetry.json
-          git add -f data/processed/survival_data.parquet
           
           # Only commit if there are changes
           if git diff --staged --quiet; then
