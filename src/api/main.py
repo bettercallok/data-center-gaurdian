@@ -52,13 +52,13 @@ async def predict_survival(telemetry: DriveTelemetry):
         
         # Determine risk level
         if ttf_days > 1000:
-            risk = "Low"
+            risk = "low"
         elif ttf_days > 365:
-            risk = "Medium"
+            risk = "medium"
         elif ttf_days > 90:
-            risk = "High"
+            risk = "high"
         else:
-            risk = "Critical"
+            risk = "critical"
             
         return SurvivalPrediction(
             ttf_days=round(ttf_days, 1),
