@@ -1,5 +1,6 @@
 import math
 import json
+import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.schemas import DriveTelemetry, SurvivalPrediction
@@ -14,29 +15,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mocked ONNX inference for demo purposes
-# In production, we'd use:
-# import onnxruntime as ort
-# session = ort.InferenceSession("survival_model.onnx")
+# Load ONNX Runtime session globally
+try:
+    import onnxruntime as ort
+    session = ort.InferenceSession("src/api/survival_model.onnx")
+    input_name = session.get_inputs()[0].name
+except Exception as e:
+    print(f"Warning: Could not load ONNX model. {e}")
+    session = None
 
 @app.post("/predict", response_model=SurvivalPrediction)
 async def predict_survival(telemetry: DriveTelemetry):
     """
     Predicts the Time-To-Failure and Remaining Useful Life of an HDD based on SMART telemetry.
-    Uses an XGBoost AFT Survival model exported to ONNX.
+    Uses the exported XGBoost ONNX model.
     """
-    try:
-        # Mocking AFT inference logic
-        # AFT formula: ln(T) = x^T * beta + sigma * epsilon
-        # We simulate the log time based on the smart metrics
-        penalty = (telemetry.smart_5_raw * 0.1) + \
-                  (telemetry.smart_187_raw * 0.5) + \
-                  (telemetry.smart_188_raw * 0.2) + \
-                  (telemetry.smart_197_raw * 0.3) + \
-                  (telemetry.smart_198_raw * 0.3)
+    if not session:
+        raise HTTPException(status_code=500, detail="ONNX Model not loaded.")
         
-        base_log_time = 7.5  # approx 1800 days
-        log_time = max(0.0, base_log_time - penalty)
+    try:
+        # Prepare input tensor: [5, 187, 188, 197, 198]
+        input_data = np.array([[
+            telemetry.smart_5_raw,
+            telemetry.smart_187_raw,
+            telemetry.smart_188_raw,
+            telemetry.smart_197_raw,
+            telemetry.smart_198_raw
+        ]], dtype=np.float32)
+        
+        # Run ONNX inference
+        output = session.run(None, {input_name: input_data})
+        log_time = float(output[0][0])
         
         # Exponentiate prediction to get actual days
         ttf_days = math.exp(log_time)
@@ -53,7 +62,7 @@ async def predict_survival(telemetry: DriveTelemetry):
             
         return SurvivalPrediction(
             ttf_days=round(ttf_days, 1),
-            rul_days=round(max(0, ttf_days - 30), 1), # Assume drive is 30 days old for mock RUL
+            rul_days=round(max(0, ttf_days - 30), 1),
             risk_level=risk,
             log_time=round(log_time, 4)
         )
