@@ -210,6 +210,88 @@ const ArchitectureTab = () => (
   </div>
 );
 
+const ModelConfigTab = () => {
+  const [config, setConfig] = useState({
+    learning_rate: 0.05,
+    max_depth: 6,
+    n_estimators: 100,
+    aft_loss_distribution_scale: 1.2,
+    aft_loss_distribution: 'normal',
+    tree_method: 'hist',
+    subsample: 0.8
+  });
+
+  return (
+    <div className="card stagger-enter" style={{ animationDelay: '0.1s' }}>
+      <h2 className="card-title">model configuration</h2>
+      
+      <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 300px' }}>
+          <h3>xgboost aft hyperparameters</h3>
+          
+          <div className="input-group">
+            <label>learning rate</label>
+            <input type="number" step="0.01" value={config.learning_rate} onChange={e => setConfig({...config, learning_rate: Number(e.target.value)})} />
+          </div>
+          <div className="input-group">
+            <label>max depth</label>
+            <input type="number" value={config.max_depth} onChange={e => setConfig({...config, max_depth: Number(e.target.value)})} />
+          </div>
+          <div className="input-group">
+            <label>n estimators</label>
+            <input type="number" value={config.n_estimators} onChange={e => setConfig({...config, n_estimators: Number(e.target.value)})} />
+          </div>
+          <div className="input-group">
+            <label>aft loss scale</label>
+            <input type="number" step="0.1" value={config.aft_loss_distribution_scale} onChange={e => setConfig({...config, aft_loss_distribution_scale: Number(e.target.value)})} />
+          </div>
+          <div className="input-group">
+            <label>aft distribution</label>
+            <select 
+              value={config.aft_loss_distribution} 
+              onChange={e => setConfig({...config, aft_loss_distribution: e.target.value})}
+              style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--bg-page)', textTransform: 'lowercase' }}
+            >
+              <option value="normal">normal</option>
+              <option value="logistic">logistic</option>
+              <option value="extreme">extreme</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ flex: '1 1 300px' }}>
+          <h3>xgb.train() preview</h3>
+          <div className="json-preview">
+            {`import xgboost as xgb
+
+params = {
+    'objective': 'survival:aft',
+    'eval_metric': 'aft-nloglik',
+    'aft_loss_distribution': '${config.aft_loss_distribution}',
+    'aft_loss_distribution_scale': ${config.aft_loss_distribution_scale},
+    'tree_method': '${config.tree_method}',
+    'learning_rate': ${config.learning_rate},
+    'max_depth': ${config.max_depth},
+    'subsample': ${config.subsample}
+}
+
+bst = xgb.train(
+    params, 
+    dtrain, 
+    num_boost_round=${config.n_estimators}
+)`}
+          </div>
+          
+          <h3 style={{ marginTop: '2rem' }}>json export</h3>
+          <div className="json-preview">
+            {JSON.stringify(config, null, 2)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function DataCenterGuardian() {
   const [activeTab, setActiveTab] = useState('pipeline');
 
@@ -240,6 +322,7 @@ export default function DataCenterGuardian() {
         {activeTab === 'drive health' && <DriveHealthTab />}
         {activeTab === 'dataset' && <DatasetTab />}
         {activeTab === 'architecture' && <ArchitectureTab />}
+        {activeTab === 'model config' && <ModelConfigTab />}
       </main>
     </div>
   );
