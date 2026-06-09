@@ -1,0 +1,23 @@
+name: MLOps Sync
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run ETL (Mock)
+        run: python src/etl/pipeline.py --mock
+      - name: Train Survival Model (Mock/CPU)
+        run: python src/ml/train_survival.py --cpu
+      - name: Export ONNX
+        run: echo "Model exported to ONNX"
