@@ -97,7 +97,7 @@ const DriveHealthTab = () => {
               <div>
                 <span className="metric-label">risk level</span>
                 <br/>
-                <span className={`badge badge-${prediction.risk_level}`}>{prediction.risk_level}</span>
+                <span className={`badge badge-${prediction.risk_level.toLowerCase()}`}>{prediction.risk_level}</span>
               </div>
             </div>
           ) : (
