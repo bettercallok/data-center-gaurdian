@@ -171,6 +171,45 @@ const DatasetTab = () => (
   </div>
 );
 
+const ArchitectureTab = () => (
+  <div className="card stagger-enter" style={{ animationDelay: '0.1s' }}>
+    <h2 className="card-title">mlops architecture</h2>
+    <div className="diagram-container">
+      <svg width="600" height="400" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-primary)" />
+          </marker>
+        </defs>
+
+        <rect x="50" y="50" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
+        <text x="125" y="85" textAnchor="middle" fill="var(--text-primary)" fontSize="14">backblaze servers</text>
+
+        <line x1="125" y1="110" x2="125" y2="150" stroke="var(--text-primary)" strokeWidth="2" markerEnd="url(#arrow)" />
+
+        <rect x="50" y="150" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
+        <text x="125" y="185" textAnchor="middle" fill="var(--text-primary)" fontSize="14">python ingestion</text>
+
+        <line x1="200" y1="180" x2="250" y2="180" stroke="var(--text-primary)" strokeWidth="2" markerEnd="url(#arrow)" />
+
+        <rect x="250" y="150" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
+        <text x="325" y="185" textAnchor="middle" fill="var(--text-primary)" fontSize="14">google colab</text>
+
+        <line x1="325" y1="210" x2="325" y2="250" stroke="var(--text-primary)" strokeWidth="2" markerEnd="url(#arrow)" />
+
+        <rect x="250" y="250" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
+        <text x="325" y="285" textAnchor="middle" fill="var(--text-primary)" fontSize="14">google drive</text>
+
+        <line x1="400" y1="280" x2="450" y2="280" stroke="var(--text-primary)" strokeWidth="2" markerEnd="url(#arrow)" />
+
+        <rect x="450" y="250" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
+        <text x="525" y="285" textAnchor="middle" fill="var(--text-primary)" fontSize="14">fastapi + onnx</text>
+
+      </svg>
+    </div>
+  </div>
+);
+
 export default function DataCenterGuardian() {
   const [activeTab, setActiveTab] = useState('pipeline');
 
@@ -200,6 +239,7 @@ export default function DataCenterGuardian() {
         {activeTab === 'pipeline' && <PipelineTab />}
         {activeTab === 'drive health' && <DriveHealthTab />}
         {activeTab === 'dataset' && <DatasetTab />}
+        {activeTab === 'architecture' && <ArchitectureTab />}
       </main>
     </div>
   );
