@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 // --- mock data & types ---
 interface TelemetryData {
@@ -76,7 +76,10 @@ const DriveHealthTab = () => {
               />
             </div>
           ))}
-          <button className="btn" onClick={simulateInference}>run prediction</button>
+          <button className="btn" onClick={simulateInference} disabled={loading}>
+            {loading ? 'running...' : 'run prediction'}
+          </button>
+          {error && <p style={{ color: 'var(--risk-critical)', marginTop: '1rem' }}>{error}</p>}
         </div>
 
         <div style={{ flex: '1 1 300px' }}>
