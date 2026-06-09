@@ -10,5 +10,4 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 telemetry.json
-*.onnx
 *.parquet
