@@ -8,9 +8,18 @@ def train_survival_model(data_path: Path, use_gpu: bool):
     print(f"Loading data from {data_path}")
     df = pl.read_parquet(data_path)
     
+    # Create synthetic survival bounds for the demo so the model reacts to SMART inputs
     df = df.with_columns([
-        pl.when(pl.col("failure") == 1).then(100).otherwise(200).alias("y_lower"),
-        pl.when(pl.col("failure") == 1).then(100).otherwise(float('inf')).alias("y_upper")
+        (pl.col("smart_5_raw") * 0.1 + pl.col("smart_187_raw") * 0.5 + pl.col("smart_197_raw") * 0.3).alias("penalty")
+    ])
+    
+    df = df.with_columns([
+        pl.when(pl.col("failure") == 1)
+          .then(pl.max_horizontal(10.0, 100.0 - pl.col("penalty")))
+          .otherwise(pl.max_horizontal(50.0, 200.0 - pl.col("penalty"))).alias("y_lower"),
+        pl.when(pl.col("failure") == 1)
+          .then(pl.max_horizontal(10.0, 100.0 - pl.col("penalty")))
+          .otherwise(float('inf')).alias("y_upper")
     ])
     
     features = ["smart_5_raw", "smart_187_raw", "smart_188_raw", "smart_197_raw", "smart_198_raw"]
@@ -41,22 +50,14 @@ def train_survival_model(data_path: Path, use_gpu: bool):
     
     project_root = data_path.parent.parent.parent
     api_dir = project_root / "src" / "api"
-    model_path = api_dir / "survival_model.onnx"
+    model_path = api_dir / "survival_model.json"
     
-    print(f"Exporting ONNX graph to {model_path}...")
+    print(f"Exporting XGBoost model to {model_path}...")
     try:
-        from onnxmltools.convert import convert_xgboost
-        from onnxmltools.convert.common.data_types import FloatTensorType
-        
-        initial_types = [('float_input', FloatTensorType([None, 5]))]
-        onnx_model = convert_xgboost(bst, initial_types=initial_types)
-        
-        with open(model_path, "wb") as f:
-            f.write(onnx_model.SerializeToString())
-            
-        print("ONNX compilation successful.")
+        bst.save_model(model_path)
+        print("Model saved successfully.")
     except Exception as e:
-        print(f"ONNX export failed: {e}")
+        print(f"Model export failed: {e}")
 
 def main():
     parser = argparse.ArgumentParser()

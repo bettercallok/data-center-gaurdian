@@ -32,14 +32,14 @@ jobs:
         # Note: In a true production environment, you would remove --mock
         # and pull the latest Backblaze CSVs here.
 
-      - name: Train XGBoost & Export ONNX
+      - name: Train XGBoost & Export
         run: python src/ml/train_survival.py --cpu
 
       - name: Commit Updated Model Artifacts
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add src/api/survival_model.onnx
+          git add src/api/survival_model.json
           git add data/processed/telemetry.json
           git add data/processed/survival_data.parquet
           

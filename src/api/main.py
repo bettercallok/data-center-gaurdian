@@ -16,37 +16,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load ONNX Runtime session globally
+# Load XGBoost model globally
 try:
-    import onnxruntime as ort
-    session = ort.InferenceSession("src/api/survival_model.onnx")
-    input_name = session.get_inputs()[0].name
+    import xgboost as xgb
+    session = xgb.Booster()
+    session.load_model("src/api/survival_model.json")
 except Exception as e:
-    print(f"Warning: Could not load ONNX model. {e}")
+    print(f"Warning: Could not load XGBoost model. {e}")
     session = None
 
 @app.post("/predict", response_model=SurvivalPrediction)
 async def predict_survival(telemetry: DriveTelemetry):
     """
     Predicts the Time-To-Failure and Remaining Useful Life of an HDD based on SMART telemetry.
-    Uses the exported XGBoost ONNX model.
+    Uses the native XGBoost model.
     """
     if not session:
-        raise HTTPException(status_code=500, detail="ONNX Model not loaded.")
+        raise HTTPException(status_code=500, detail="XGBoost Model not loaded.")
         
     try:
-        # Prepare input tensor: [5, 187, 188, 197, 198]
-        input_data = np.array([[
+        # Prepare input DMatrix
+        input_data = xgb.DMatrix(np.array([[
             telemetry.smart_5_raw,
             telemetry.smart_187_raw,
             telemetry.smart_188_raw,
             telemetry.smart_197_raw,
             telemetry.smart_198_raw
-        ]], dtype=np.float32)
+        ]], dtype=np.float32))
         
-        # Run ONNX inference
-        output = session.run(None, {input_name: input_data})
-        log_time = float(output[0][0])
+        # Run XGBoost inference
+        output = session.predict(input_data)
+        log_time = float(output[0])
         
         # Exponentiate prediction to get actual days
         ttf_days = math.exp(log_time)
