@@ -17,63 +17,46 @@ interface Prediction {
 }
 
 // --- components ---
-const PipelineTab = () => (
-  <div className="card stagger-enter" style={{ animationDelay: '0.1s' }}>
-    <h2 className="card-title">mlops pipeline roadmap</h2>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ padding: '1rem', borderLeft: '4px solid var(--accent)', backgroundColor: 'var(--bg-page)' }}>
-        <h3>phase 1: infrastructure & extraction</h3>
-        <p style={{ color: 'var(--text-muted)' }}>automated large-scale data engineering from backblaze zip archives.</p>
-      </div>
-      <div style={{ padding: '1rem', borderLeft: '4px solid var(--accent)', backgroundColor: 'var(--bg-page)' }}>
-        <h3>phase 2: polars etl</h3>
-        <p style={{ color: 'var(--text-muted)' }}>out-of-core streaming analytics and rolling window feature engineering.</p>
-      </div>
-      <div style={{ padding: '1rem', borderLeft: '4px solid var(--accent)', backgroundColor: 'var(--bg-page)' }}>
-        <h3>phase 3: model training</h3>
-        <p style={{ color: 'var(--text-muted)' }}>xgboost aft survival analysis with right censoring on gpu.</p>
-      </div>
-      <div style={{ padding: '1rem', borderLeft: '4px solid var(--accent)', backgroundColor: 'var(--bg-page)' }}>
-        <h3>phase 4: production serving</h3>
-        <p style={{ color: 'var(--text-muted)' }}>fastapi + onnx runtime containerized edge deployment.</p>
-      </div>
-    </div>
-  </div>
-);
-
 const DriveHealthTab = () => {
   const [telemetry, setTelemetry] = useState<TelemetryData>({
-    smart_5_raw: 0,
-    smart_187_raw: 0,
+    smart_5_raw: 12,
+    smart_187_raw: 2,
     smart_188_raw: 0,
-    smart_197_raw: 0,
-    smart_198_raw: 0
+    smart_197_raw: 8,
+    smart_198_raw: 8
   });
 
   const [prediction, setPrediction] = useState<Prediction | null>(null);
 
-  const simulateInference = () => {
-    // simulate fastapi inference
-    const penalty = (telemetry.smart_5_raw * 0.1) +
-                    (telemetry.smart_187_raw * 0.5) +
-                    (telemetry.smart_188_raw * 0.2) +
-                    (telemetry.smart_197_raw * 0.3) +
-                    (telemetry.smart_198_raw * 0.3);
-    const base_log_time = 7.5;
-    const log_time = Math.max(0.0, base_log_time - penalty);
-    const ttf_days = Math.exp(log_time);
-    
-    let risk = "low";
-    if (ttf_days < 90) risk = "critical";
-    else if (ttf_days < 365) risk = "high";
-    else if (ttf_days < 1000) risk = "medium";
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-    setPrediction({
-      ttf_days: Number(ttf_days.toFixed(1)),
-      rul_days: Number(Math.max(0, ttf_days - 30).toFixed(1)),
-      risk_level: risk,
-      log_time: Number(log_time.toFixed(4))
-    });
+  const simulateInference = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // Hit the real backend API
+      const res = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(telemetry)
+      });
+      
+      if (!res.ok) throw new Error('API Error');
+      
+      const data = await res.json();
+      setPrediction({
+        ttf_days: data.ttf_days,
+        rul_days: data.rul_days,
+        risk_level: data.risk_level,
+        log_time: data.log_time
+      });
+    } catch (err) {
+      console.error(err);
+      setError('Failed to connect to inference server.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -113,14 +96,20 @@ const DriveHealthTab = () => {
                 <br/>
                 <span className={`badge badge-${prediction.risk_level}`}>{prediction.risk_level}</span>
               </div>
-              <div className="json-preview">
-                {JSON.stringify(prediction, null, 2)}
-              </div>
             </div>
           ) : (
             <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>enter telemetry to simulate inference.</p>
           )}
         </div>
+      </div>
+      
+      <div className="card" style={{ marginTop: '2rem' }}>
+        <h3>understanding the metrics: ttf vs rul</h3>
+        <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', marginTop: '1rem' }}>
+          <strong>time-to-failure (ttf):</strong> the absolute total lifespan of the drive from the day it was manufactured until the day it completely dies.
+          <br/><br/>
+          <strong>remaining useful life (rul):</strong> the estimated number of days left before the drive fails, calculated by taking the ttf and subtracting the number of days the drive has already been in operation.
+        </p>
       </div>
     </div>
   );
@@ -130,22 +119,14 @@ const DatasetTab = () => (
   <div className="card stagger-enter" style={{ animationDelay: '0.1s' }}>
     <h2 className="card-title">dataset & telemetry</h2>
     
-    <div className="metric-grid" style={{ marginBottom: '2rem' }}>
-      <div className="card">
-        <span className="metric-label">annualized failure rate (afr)</span>
-        <span className="metric-value">1.12%</span>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem', marginBottom: '2rem' }}>
+      <div className="stat-card">
+        <span className="stat-label">annualized failure rate</span>
+        <span className="stat-value">1.12%</span>
       </div>
-      <div className="card">
-        <span className="metric-label">total drives</span>
-        <span className="metric-value">240,000</span>
-      </div>
-      <div className="card">
-        <span className="metric-label">drive days</span>
-        <span className="metric-value">85,000,000</span>
-      </div>
-      <div className="card">
-        <span className="metric-label">schema evolution</span>
-        <span className="metric-value">v1.4</span>
+      <div className="stat-card">
+        <span className="stat-label">total drives</span>
+        <span className="stat-value">240,000</span>
       </div>
     </div>
 
@@ -167,45 +148,6 @@ const DatasetTab = () => (
         <strong>smart 197 & 198 (pending/uncorrectable)</strong>
         <p style={{ color: 'var(--text-muted)' }}>unreadable sectors pending reallocation.</p>
       </div>
-    </div>
-  </div>
-);
-
-const ArchitectureTab = () => (
-  <div className="card stagger-enter" style={{ animationDelay: '0.1s' }}>
-    <h2 className="card-title">mlops architecture</h2>
-    <div className="diagram-container">
-      <svg width="600" height="400" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-primary)" />
-          </marker>
-        </defs>
-
-        <rect x="50" y="50" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
-        <text x="125" y="85" textAnchor="middle" fill="var(--text-primary)" fontSize="14">backblaze servers</text>
-
-        <line x1="125" y1="110" x2="125" y2="150" stroke="var(--text-primary)" strokeWidth="2" markerEnd="url(#arrow)" />
-
-        <rect x="50" y="150" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
-        <text x="125" y="185" textAnchor="middle" fill="var(--text-primary)" fontSize="14">python ingestion</text>
-
-        <line x1="200" y1="180" x2="250" y2="180" stroke="var(--text-primary)" strokeWidth="2" markerEnd="url(#arrow)" />
-
-        <rect x="250" y="150" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
-        <text x="325" y="185" textAnchor="middle" fill="var(--text-primary)" fontSize="14">google colab</text>
-
-        <line x1="325" y1="210" x2="325" y2="250" stroke="var(--text-primary)" strokeWidth="2" markerEnd="url(#arrow)" />
-
-        <rect x="250" y="250" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
-        <text x="325" y="285" textAnchor="middle" fill="var(--text-primary)" fontSize="14">google drive</text>
-
-        <line x1="400" y1="280" x2="450" y2="280" stroke="var(--text-primary)" strokeWidth="2" markerEnd="url(#arrow)" />
-
-        <rect x="450" y="250" width="150" height="60" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
-        <text x="525" y="285" textAnchor="middle" fill="var(--text-primary)" fontSize="14">fastapi + onnx</text>
-
-      </svg>
     </div>
   </div>
 );
@@ -258,44 +200,15 @@ const ModelConfigTab = () => {
             </select>
           </div>
         </div>
-
-        <div style={{ flex: '1 1 300px' }}>
-          <h3>xgb.train() preview</h3>
-          <div className="json-preview">
-            {`import xgboost as xgb
-
-params = {
-    'objective': 'survival:aft',
-    'eval_metric': 'aft-nloglik',
-    'aft_loss_distribution': '${config.aft_loss_distribution}',
-    'aft_loss_distribution_scale': ${config.aft_loss_distribution_scale},
-    'tree_method': '${config.tree_method}',
-    'learning_rate': ${config.learning_rate},
-    'max_depth': ${config.max_depth},
-    'subsample': ${config.subsample}
-}
-
-bst = xgb.train(
-    params, 
-    dtrain, 
-    num_boost_round=${config.n_estimators}
-)`}
-          </div>
-          
-          <h3 style={{ marginTop: '2rem' }}>json export</h3>
-          <div className="json-preview">
-            {JSON.stringify(config, null, 2)}
-          </div>
-        </div>
       </div>
     </div>
   );
 };
 
 export default function DataCenterGuardian() {
-  const [activeTab, setActiveTab] = useState('pipeline');
+  const [activeTab, setActiveTab] = useState('drive health');
 
-  const tabs = ['pipeline', 'drive health', 'dataset', 'architecture', 'model config'];
+  const tabs = ['drive health', 'dataset', 'model config'];
 
   return (
     <div className="dashboard-container">
@@ -318,10 +231,8 @@ export default function DataCenterGuardian() {
       </header>
       
       <main>
-        {activeTab === 'pipeline' && <PipelineTab />}
         {activeTab === 'drive health' && <DriveHealthTab />}
         {activeTab === 'dataset' && <DatasetTab />}
-        {activeTab === 'architecture' && <ArchitectureTab />}
         {activeTab === 'model config' && <ModelConfigTab />}
       </main>
     </div>
