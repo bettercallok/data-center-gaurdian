@@ -46,10 +46,9 @@ async def predict_survival(telemetry: DriveTelemetry):
         
         # Run XGBoost inference
         output = session.predict(input_data)
-        log_time = float(output[0])
         
-        # Exponentiate prediction to get actual days
-        ttf_days = math.exp(log_time)
+        # XGBoost natively returns the expected value (TTF in days) for AFT objective
+        ttf_days = float(output[0])
         
         # Determine risk level
         if ttf_days > 1000:
@@ -65,7 +64,7 @@ async def predict_survival(telemetry: DriveTelemetry):
             ttf_days=round(ttf_days, 1),
             rul_days=round(max(0, ttf_days - 30), 1),
             risk_level=risk,
-            log_time=round(log_time, 4)
+            log_time=round(math.log(max(1.0, ttf_days)), 4)
         )
         
     except Exception as e:
