@@ -35,8 +35,8 @@ const DriveHealthTab = () => {
     setLoading(true);
     setError('');
     try {
-      // Hit the real backend API
-      const res = await fetch('/predict', {
+      // Hit the real Hugging Face backend API
+      const res = await fetch('https://bettercallok-data-center-guardian.hf.space/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(telemetry)
