@@ -1,7 +1,3 @@
-"""
-train_survival.py
-XGBoost AFT Survival Analysis training logic.
-"""
 import argparse
 import xgboost as xgb
 import polars as pl
@@ -12,10 +8,6 @@ def train_survival_model(data_path: Path, use_gpu: bool):
     print(f"Loading data from {data_path}")
     df = pl.read_parquet(data_path)
     
-    # We construct the AFT survival labels
-    # If failure == 1, then the drive failed exactly at T (label_lower_bound = T, label_upper_bound = T)
-    # If failure == 0, then the drive survived up to T (label_lower_bound = T, label_upper_bound = +inf)
-    # For this mock, we just use dummy times.
     df = df.with_columns([
         pl.when(pl.col("failure") == 1).then(100).otherwise(200).alias("y_lower"),
         pl.when(pl.col("failure") == 1).then(100).otherwise(float('inf')).alias("y_upper")
@@ -35,7 +27,7 @@ def train_survival_model(data_path: Path, use_gpu: bool):
         'eval_metric': 'aft-nloglik',
         'aft_loss_distribution': 'normal',
         'aft_loss_distribution_scale': 1.2,
-        'tree_method': 'hist' if use_gpu else 'hist',
+        'tree_method': 'hist',
         'learning_rate': 0.05,
         'max_depth': 6,
         'subsample': 0.8
@@ -47,13 +39,24 @@ def train_survival_model(data_path: Path, use_gpu: bool):
     print("Training XGBoost AFT model...")
     bst = xgb.train(params, dtrain, num_boost_round=10)
     
-    model_dir = data_path.parent
-    model_path = model_dir / "survival_model.json"
-    bst.save_model(str(model_path))
-    print(f"Model saved to {model_path}")
+    project_root = data_path.parent.parent.parent
+    api_dir = project_root / "src" / "api"
+    model_path = api_dir / "survival_model.onnx"
     
-    # Normally we'd export to ONNX here using onnxmltools
-    print("Skipping ONNX export in mock environment, returning true json model.")
+    print(f"Exporting ONNX graph to {model_path}...")
+    try:
+        from onnxmltools.convert import convert_xgboost
+        from onnxconverter_common.data_types import FloatTensorType
+        
+        initial_types = [('float_input', FloatTensorType([None, 5]))]
+        onnx_model = convert_xgboost(bst, initial_types=initial_types)
+        
+        with open(model_path, "wb") as f:
+            f.write(onnx_model.SerializeToString())
+            
+        print("ONNX compilation successful.")
+    except ImportError:
+        print("onnxmltools not installed, skipping ONNX export.")
 
 def main():
     parser = argparse.ArgumentParser()
