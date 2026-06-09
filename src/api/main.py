@@ -2,6 +2,7 @@ import math
 import json
 import numpy as np
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.schemas import DriveTelemetry, SurvivalPrediction
 
@@ -78,3 +79,6 @@ async def get_telemetry():
             return json.load(f)
     except FileNotFoundError:
         return {"error": "Telemetry file not found. Run pipeline first."}
+
+# Mount static frontend files for Hugging Face single-port deployment
+app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
