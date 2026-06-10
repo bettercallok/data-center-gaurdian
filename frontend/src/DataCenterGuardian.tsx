@@ -157,68 +157,11 @@ const DatasetTab = () => (
   </div>
 );
 
-const ModelConfigTab = () => {
-  const [config, setConfig] = useState({
-    learning_rate: 0.05,
-    max_depth: 6,
-    n_estimators: 100,
-    aft_loss_distribution_scale: 1.2,
-    aft_loss_distribution: 'normal',
-    tree_method: 'hist',
-    subsample: 0.8
-  });
-
-  return (
-    <div className="card stagger-enter" style={{ animationDelay: '0.1s' }}>
-      <h2 className="card-title">model configuration</h2>
-      
-      <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 300px' }}>
-          <div className="alert" style={{ backgroundColor: 'rgba(255, 165, 0, 0.1)', border: '1px solid orange', padding: '1rem', borderRadius: '4px', marginBottom: '1.5rem' }}>
-            <p style={{ color: 'orange', fontSize: '0.9rem', margin: 0 }}>
-              <strong>note:</strong> this tab is a visual mockup. in our decoupled architecture, the frontend client only handles inference (predictions). model retraining requires heavy compute and is managed entirely by the github actions continuous training pipeline.
-            </p>
-          </div>
-          <h3>xgboost aft hyperparameters</h3>
-          
-          <div className="input-group">
-            <label>learning rate</label>
-            <input type="number" step="0.01" value={config.learning_rate} onChange={e => setConfig({...config, learning_rate: Number(e.target.value)})} />
-          </div>
-          <div className="input-group">
-            <label>max depth</label>
-            <input type="number" value={config.max_depth} onChange={e => setConfig({...config, max_depth: Number(e.target.value)})} />
-          </div>
-          <div className="input-group">
-            <label>n estimators</label>
-            <input type="number" value={config.n_estimators} onChange={e => setConfig({...config, n_estimators: Number(e.target.value)})} />
-          </div>
-          <div className="input-group">
-            <label>aft loss scale</label>
-            <input type="number" step="0.1" value={config.aft_loss_distribution_scale} onChange={e => setConfig({...config, aft_loss_distribution_scale: Number(e.target.value)})} />
-          </div>
-          <div className="input-group">
-            <label>aft distribution</label>
-            <select 
-              value={config.aft_loss_distribution} 
-              onChange={e => setConfig({...config, aft_loss_distribution: e.target.value})}
-              style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--bg-page)', textTransform: 'lowercase' }}
-            >
-              <option value="normal">normal</option>
-              <option value="logistic">logistic</option>
-              <option value="extreme">extreme</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default function DataCenterGuardian() {
   const [activeTab, setActiveTab] = useState('drive health');
 
-  const tabs = ['drive health', 'dataset', 'model config'];
+  const tabs = ['drive health', 'dataset'];
 
   return (
     <div className="dashboard-container">
@@ -243,7 +186,7 @@ export default function DataCenterGuardian() {
       <main>
         {activeTab === 'drive health' && <DriveHealthTab />}
         {activeTab === 'dataset' && <DatasetTab />}
-        {activeTab === 'model config' && <ModelConfigTab />}
+
       </main>
     </div>
   );
