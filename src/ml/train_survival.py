@@ -26,10 +26,20 @@ def train_survival_model(data_path: Path, use_gpu: bool):
     X = df.select(features).to_pandas().values
     y_lower = df.select("y_lower").to_pandas()["y_lower"].values
     y_upper = df.select("y_upper").to_pandas()["y_upper"].values
-    
-    dtrain = xgb.DMatrix(X)
-    dtrain.set_float_info('label_lower_bound', y_lower)
-    dtrain.set_float_info('label_upper_bound', y_upper)
+
+    # 80/20 train/eval split for early stopping
+    split = int(len(X) * 0.8)
+    X_train, X_eval = X[:split], X[split:]
+    y_lower_train, y_lower_eval = y_lower[:split], y_lower[split:]
+    y_upper_train, y_upper_eval = y_upper[:split], y_upper[split:]
+
+    dtrain = xgb.DMatrix(X_train)
+    dtrain.set_float_info('label_lower_bound', y_lower_train)
+    dtrain.set_float_info('label_upper_bound', y_upper_train)
+
+    deval = xgb.DMatrix(X_eval)
+    deval.set_float_info('label_lower_bound', y_lower_eval)
+    deval.set_float_info('label_upper_bound', y_upper_eval)
     
     params = {
         'objective': 'survival:aft',
@@ -45,8 +55,15 @@ def train_survival_model(data_path: Path, use_gpu: bool):
     if use_gpu:
         params['device'] = 'cuda'
         
-    print("Training XGBoost AFT model...")
-    bst = xgb.train(params, dtrain, num_boost_round=10)
+    print("Training XGBoost AFT model (up to 300 rounds with early stopping)...")
+    bst = xgb.train(
+        params,
+        dtrain,
+        num_boost_round=300,
+        evals=[(deval, "eval")],
+        early_stopping_rounds=20,
+        verbose_eval=50
+    )
     
     project_root = data_path.parent.parent.parent
     api_dir = project_root / "src" / "api"
