@@ -1,19 +1,31 @@
 import math
 import json
+import logging
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.schemas import DriveTelemetry, SurvivalPrediction
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(title="Data Center Guardian API", version="1.0.0")
+
+# Restrict CORS to known trusted origins only — never use wildcard (*) in production
+ALLOWED_ORIGINS = [
+    "https://data-center-gaurdian.vercel.app",
+    "https://bettercallok-data-center-guardian.hf.space",
+    "http://localhost:5173",  # local vite dev server
+    "http://localhost:3000",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["POST", "GET"],
+    allow_headers=["Content-Type"],
 )
 
 # Load XGBoost model globally
@@ -68,7 +80,9 @@ async def predict_survival(telemetry: DriveTelemetry):
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log the full exception internally — never expose raw stack traces to clients
+        logger.error("prediction failed", exc_info=True)
+        raise HTTPException(status_code=500, detail="internal server error. please try again.")
 
 @app.get("/telemetry")
 async def get_telemetry():
