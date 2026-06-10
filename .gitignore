@@ -11,3 +11,4 @@ data/processed/*
 !data/processed/.gitkeep
 telemetry.json
 *.parquet
+compiled_smart_data.csv
