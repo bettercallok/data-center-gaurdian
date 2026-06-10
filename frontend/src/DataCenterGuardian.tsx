@@ -174,6 +174,11 @@ const ModelConfigTab = () => {
       
       <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 300px' }}>
+          <div className="alert" style={{ backgroundColor: 'rgba(255, 165, 0, 0.1)', border: '1px solid orange', padding: '1rem', borderRadius: '4px', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'orange', fontSize: '0.9rem', margin: 0 }}>
+              <strong>note:</strong> this tab is a visual mockup. in our decoupled architecture, the frontend client only handles inference (predictions). model retraining requires heavy compute and is managed entirely by the github actions continuous training pipeline.
+            </p>
+          </div>
           <h3>xgboost aft hyperparameters</h3>
           
           <div className="input-group">
