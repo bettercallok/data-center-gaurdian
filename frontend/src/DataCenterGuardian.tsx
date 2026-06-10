@@ -36,7 +36,7 @@ const DriveHealthTab = () => {
     setError('');
     try {
       // Hit the real Hugging Face backend API
-      const res = await fetch('https://bettercallok-data-center-guardian.hf.space/predict', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(telemetry)
