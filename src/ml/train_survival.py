@@ -4,28 +4,63 @@ import polars as pl
 from pathlib import Path
 import json
 
+def compute_real_ttf(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Computes real Time-To-Failure bounds per drive from actual observation dates.
+    
+    For each unique serial_number:
+      - ttf = number of days from first_seen to last_seen (the drive's real lifespan)
+      - y_lower = ttf (the exact observed lifespan — a hard lower bound)
+      - y_upper = ttf if failed==1, else inf (right-censored: drive still alive)
+    
+    This replaces synthetic math with ground-truth survival times from the dataset.
+    """
+    df = df.with_columns(pl.col("date").str.strptime(pl.Date, "%Y-%m-%d", strict=False))
+
+    drive_stats = (
+        df.group_by("serial_number")
+        .agg([
+            pl.col("date").min().alias("first_seen"),
+            pl.col("date").max().alias("last_seen"),
+            pl.col("failure").max().alias("ever_failed"),
+            pl.col("smart_5_raw").mean().alias("smart_5_raw"),
+            pl.col("smart_187_raw").mean().alias("smart_187_raw"),
+            pl.col("smart_188_raw").mean().alias("smart_188_raw"),
+            pl.col("smart_197_raw").mean().alias("smart_197_raw"),
+            pl.col("smart_198_raw").mean().alias("smart_198_raw"),
+        ])
+    )
+
+    drive_stats = drive_stats.with_columns([
+        ((pl.col("last_seen") - pl.col("first_seen")).dt.total_days() + 1).alias("ttf")
+    ])
+
+    drive_stats = drive_stats.with_columns([
+        pl.col("ttf").clip(lower_bound=1).alias("y_lower"),
+        pl.when(pl.col("ever_failed") == 1)
+          .then(pl.col("ttf").clip(lower_bound=1))
+          .otherwise(float("inf"))
+          .alias("y_upper"),
+        pl.col("ever_failed").alias("failure"),
+    ])
+
+    print(f"  drives processed: {len(drive_stats)}")
+    print(f"  failed drives:    {drive_stats['ever_failed'].sum()}")
+    print(f"  median TTF days:  {drive_stats['ttf'].median():.1f}")
+
+    return drive_stats
+
 def train_survival_model(data_path: Path, use_gpu: bool):
-    print(f"Loading data from {data_path}")
+    print(f"loading data from {data_path}")
     df = pl.read_parquet(data_path)
-    
-    # Create synthetic survival bounds for the demo so the model reacts to SMART inputs
-    df = df.with_columns([
-        (pl.col("smart_5_raw") * 0.1 + pl.col("smart_187_raw") * 0.5 + pl.col("smart_197_raw") * 0.3).alias("penalty")
-    ])
-    
-    df = df.with_columns([
-        pl.when(pl.col("failure") == 1)
-          .then(pl.max_horizontal(10.0, 100.0 - pl.col("penalty")))
-          .otherwise(pl.max_horizontal(50.0, 200.0 - pl.col("penalty"))).alias("y_lower"),
-        pl.when(pl.col("failure") == 1)
-          .then(pl.max_horizontal(10.0, 100.0 - pl.col("penalty")))
-          .otherwise(float('inf')).alias("y_upper")
-    ])
+
+    print("computing real per-drive TTF from observation dates...")
+    drive_stats = compute_real_ttf(df)
     
     features = ["smart_5_raw", "smart_187_raw", "smart_188_raw", "smart_197_raw", "smart_198_raw"]
-    X = df.select(features).to_pandas().values
-    y_lower = df.select("y_lower").to_pandas()["y_lower"].values
-    y_upper = df.select("y_upper").to_pandas()["y_upper"].values
+    X = drive_stats.select(features).to_pandas().values
+    y_lower = drive_stats.select("y_lower").to_pandas()["y_lower"].values
+    y_upper = drive_stats.select("y_upper").to_pandas()["y_upper"].values
 
     # 80/20 train/eval split for early stopping
     split = int(len(X) * 0.8)
