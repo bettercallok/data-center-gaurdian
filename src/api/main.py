@@ -2,15 +2,23 @@ import math
 import json
 import logging
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from src.api.schemas import DriveTelemetry, SurvivalPrediction
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(title="Data Center Guardian API", version="1.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Restrict CORS to known trusted origins only — never use wildcard (*) in production
 ALLOWED_ORIGINS = [
@@ -38,7 +46,8 @@ except Exception as e:
     session = None
 
 @app.post("/predict", response_model=SurvivalPrediction)
-async def predict_survival(telemetry: DriveTelemetry):
+@limiter.limit("30/minute")
+async def predict_survival(request: Request, telemetry: DriveTelemetry):
     """
     Predicts the Time-To-Failure and Remaining Useful Life of an HDD based on SMART telemetry.
     Uses the native XGBoost model.
