@@ -7,8 +7,9 @@ __pycache__/
 .ipynb_checkpoints/
 data/raw/*
 !data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
-telemetry.json
-*.parquet
+data/processed/survival_data.parquet
+# telemetry.json in data/processed/ is committed by CI — do NOT ignore it here
+# compiled csv outputs from local extract scripts
 compiled_smart_data.csv
+# frontend environment files — .env.example is safe to commit, .env is not
+frontend/.env
