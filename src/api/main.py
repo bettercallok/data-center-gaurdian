@@ -2,6 +2,8 @@ import math
 import json
 import logging
 import numpy as np
+import xgboost as xgb
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,7 +18,23 @@ logging.basicConfig(level=logging.INFO)
 
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="Data Center Guardian API", version="1.0.0")
+# Global model reference — populated by the lifespan handler at startup
+model: xgb.Booster | None = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manages application startup and shutdown lifecycle."""
+    global model
+    logger.info("loading xgboost survival model...")
+    model = xgb.Booster()
+    model.load_model("src/api/survival_model.json")
+    logger.info("model loaded successfully. server ready.")
+    yield
+    # Shutdown: release model from memory
+    model = None
+    logger.info("model unloaded. server shutting down.")
+
+app = FastAPI(title="Data Center Guardian API", version="1.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -36,15 +54,6 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-# Load XGBoost model globally
-try:
-    import xgboost as xgb
-    session = xgb.Booster()
-    session.load_model("src/api/survival_model.json")
-except Exception as e:
-    print(f"Warning: Could not load XGBoost model. {e}")
-    session = None
-
 @app.post("/predict", response_model=SurvivalPrediction)
 @limiter.limit("30/minute")
 async def predict_survival(request: Request, telemetry: DriveTelemetry):
@@ -52,8 +61,8 @@ async def predict_survival(request: Request, telemetry: DriveTelemetry):
     Predicts the Time-To-Failure and Remaining Useful Life of an HDD based on SMART telemetry.
     Uses the native XGBoost model.
     """
-    if not session:
-        raise HTTPException(status_code=500, detail="XGBoost Model not loaded.")
+    if not model:
+        raise HTTPException(status_code=503, detail="model not available. please try again shortly.")
         
     try:
         # Prepare input DMatrix
@@ -66,7 +75,7 @@ async def predict_survival(request: Request, telemetry: DriveTelemetry):
         ]], dtype=np.float32))
         
         # Run XGBoost inference
-        output = session.predict(input_data)
+        output = model.predict(input_data)
         
         # XGBoost natively returns the expected value (TTF in days) for AFT objective
         ttf_days = float(output[0])
