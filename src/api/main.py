@@ -40,7 +40,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Restrict CORS to known trusted origins only — never use wildcard (*) in production
 ALLOWED_ORIGINS = [
-    "https://data-center-gaurdian.vercel.app",
+    "https://data-center-guardian.vercel.app",
     "https://bettercallok-data-center-guardian.hf.space",
     "http://localhost:5173",  # local vite dev server
     "http://localhost:3000",
